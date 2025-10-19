@@ -46,6 +46,8 @@ SKIP_CUDA_BUILD = os.getenv("FLASH_ATTENTION_SKIP_CUDA_BUILD", "FALSE") == "TRUE
 # For CI, we want the option to build with C++11 ABI since the nvcr images use C++11 ABI
 FORCE_CXX11_ABI = os.getenv("FLASH_ATTENTION_FORCE_CXX11_ABI", "FALSE") == "TRUE"
 
+os.environ.setdefault("MAX_JOBS", "4")
+
 
 def get_platform():
     """
@@ -84,7 +86,7 @@ def check_if_cuda_home_none(global_option: str) -> None:
 
 
 def append_nvcc_threads(nvcc_extra_args):
-    return nvcc_extra_args + ["--threads", "4"]
+    return nvcc_extra_args + ["--threads", "2"]
 
 
 cmdclass = {}
@@ -116,8 +118,12 @@ if not SKIP_CUDA_BUILD:
                 "FlashAttention is only supported on CUDA 11.6 and above.  "
                 "Note: make sure nvcc has a supported version by running nvcc -V."
             )
-    # cc_flag.append("-gencode")
-    # cc_flag.append("arch=compute_75,code=sm_75")
+            
+    # CHANGE: Added flags for Turing architecture (Compute Capability 7.5).
+    # This is necessary to generate a binary compatible with Turing GPUs.
+    cc_flag.append("-gencode")
+    cc_flag.append("arch=compute_75,code=sm_75")
+    
     cc_flag.append("-gencode")
     cc_flag.append("arch=compute_80,code=sm_80")
     if CUDA_HOME is not None:
