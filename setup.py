@@ -119,91 +119,90 @@ if not SKIP_CUDA_BUILD:
                 "Note: make sure nvcc has a supported version by running nvcc -V."
             )
             
-    # CHANGE: Added flags for Turing architecture (Compute Capability 7.5).
-    # This is necessary to generate a binary compatible with Turing GPUs.
+    # CHANGE 1: Hardcode build for Turing (sm_75) only.
+    # This removes the need for TORCH_CUDA_ARCH_LIST and prevents compiling
+    # unnecessary code for other architectures.
     cc_flag.append("-gencode")
     cc_flag.append("arch=compute_75,code=sm_75")
     
-    cc_flag.append("-gencode")
-    cc_flag.append("arch=compute_80,code=sm_80")
-    if CUDA_HOME is not None:
-        if bare_metal_version >= Version("11.8"):
-            cc_flag.append("-gencode")
-            cc_flag.append("arch=compute_90,code=sm_90")
-
     # HACK: The compiler flag -D_GLIBCXX_USE_CXX11_ABI is set to be the same as
     # torch._C._GLIBCXX_USE_CXX11_ABI
     # https://github.com/pytorch/pytorch/blob/8472c24e3b5b60150096486616d98b7bea01500b/torch/utils/cpp_extension.py#L920
     if FORCE_CXX11_ABI:
         torch._C._GLIBCXX_USE_CXX11_ABI = True
+
+    # CHANGE 2: Filter out bfloat16 source files.
+    # Turing architecture does not support bf16, so we remove these sources
+    # to speed up compilation and reduce binary size.
+    all_sources = [
+        "csrc/block_sparse_attn/flash_api.cpp",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim32_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim32_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim64_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim64_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim96_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim96_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim128_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim128_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim160_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim160_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim192_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim192_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim224_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim224_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim256_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_hdim256_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim32_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim32_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim64_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim64_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim96_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim96_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim128_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim128_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim160_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim160_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim192_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim192_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim224_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim224_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim256_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_hdim256_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim32_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim32_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim64_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim64_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim96_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim96_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim128_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim128_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim160_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim160_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim192_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim192_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim224_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim224_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim256_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_split_hdim256_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_block_hdim32_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_block_hdim32_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_block_hdim64_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_block_hdim64_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_block_hdim128_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_fwd_block_hdim128_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_block_hdim32_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_block_hdim32_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_block_hdim64_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_block_hdim64_bf16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_block_hdim128_fp16_sm80.cu",
+        "csrc/block_sparse_attn/src/flash_bwd_block_hdim128_bf16_sm80.cu",
+    ]
+    sources_fp16 = [s for s in all_sources if "bf16" not in s]
+
     ext_modules.append(
         CUDAExtension(
             name="block_sparse_attn_cuda",
-            sources=[
-                "csrc/block_sparse_attn/flash_api.cpp",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim32_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim32_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim64_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim64_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim96_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim96_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim128_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim128_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim160_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim160_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim192_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim192_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim224_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim224_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim256_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_hdim256_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim32_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim32_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim64_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim64_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim96_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim96_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim128_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim128_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim160_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim160_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim192_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim192_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim224_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim224_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim256_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_hdim256_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim32_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim32_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim64_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim64_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim96_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim96_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim128_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim128_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim160_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim160_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim192_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim192_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim224_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim224_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim256_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_split_hdim256_bf16_sm80.cu",
-                # add by JXGuo
-                "csrc/block_sparse_attn/src/flash_fwd_block_hdim32_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_block_hdim32_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_block_hdim64_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_block_hdim64_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_block_hdim128_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_fwd_block_hdim128_bf16_sm80.cu",
-                
-                "csrc/block_sparse_attn/src/flash_bwd_block_hdim32_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_block_hdim32_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_block_hdim64_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_block_hdim64_bf16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_block_hdim128_fp16_sm80.cu",
-                "csrc/block_sparse_attn/src/flash_bwd_block_hdim128_bf16_sm80.cu",
-            ],
+            sources=sources_fp16,
             extra_compile_args={
                 "cxx": ["-O3", "-std=c++17"] + generator_flag,
                 "nvcc": append_nvcc_threads(
@@ -217,11 +216,7 @@ if not SKIP_CUDA_BUILD:
                         "--expt-relaxed-constexpr",
                         "--expt-extended-lambda",
                         "--use_fast_math",
-                        # "--ptxas-options=-v",
-                        # "--ptxas-options=-O2",
                         "-lineinfo",
-                        # "-G",
-                        # "-g",
                     ]
                     + generator_flag
                     + cc_flag
